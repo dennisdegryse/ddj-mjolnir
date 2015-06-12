@@ -73,7 +73,7 @@
                     name:   $(document.getElementById(form.find('input[name=story_dom_id]').val())).find(S_POST_AUTHORLINK).text(),
                     id:     form.find('input[name=remove_uid]').val(),
                     reason: $('input[name=violationType]:checked').val(),
-                    status: $('input[name=ban_user]').attr('checked') ? "Permanent ban" : "Removed (not permanent)"
+                    status: $('input[name=ban_user]').is(':checked') ? "Permanent ban" : "Removed (not permanent)"
                 };
             };
             
