@@ -1,4 +1,4 @@
-/* global $, GM_openInTab */
+/* global $, GM_openInTab, ddj */
 // ==UserScript==
 // @name         mjolnir
 // @namespace    http://www.dennisdegryse.be/ddj/
