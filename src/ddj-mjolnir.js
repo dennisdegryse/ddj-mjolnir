@@ -162,7 +162,7 @@
                 'bottom' : '0px',
                 'background-color' : '#e9eaed',
                 'background-image' : 'url(https://github.com/dennisdegryse/ddj-mjolnir/blob/master/src/loader.gif?raw=true)',
-                'background-postion' : 'center center',
+                'background-position' : 'center center',
                 'background-repeat' : 'no-repeat',
                 'z-index' : 9007199254740992
             });
