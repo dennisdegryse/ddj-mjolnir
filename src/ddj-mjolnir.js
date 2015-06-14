@@ -10,7 +10,7 @@
 // @require      https://raw.githubusercontent.com/dennisdegryse/ddj-hookr/master/src/ddj-hookr.js
 // @grant        GM_openInTab
 // @noframes
-// @icon         https://lh6.googleusercontent.com/gek_JBI9Ddd1bds-xchgPRxYfMhGAC1ii_Kq2657kNd2eG-YU6dQYZxlIMRfp5QXhXkC1vta=w1896-h835-rw
+// @icon         https://github.com/dennisdegryse/ddj-mjolnir/blob/master/src/mjolnir-icon256.png?raw=true
 // ==/UserScript==
 
 (function () {
@@ -20,8 +20,9 @@
     
     /* STATES */
     var STATE_INITIAL                = 1;
-    var STATE_REPORTING_COMPOSED     = 2;
-    var STATE_REPORTING_SUBMITTED    = 3;
+    var STATE_REPORTING_WINDOW       = 2;
+    var STATE_REPORTING_COMPOSED     = 3;
+    var STATE_REPORTING_SUBMITTED    = 4;
     
     /* SELECTORS */
     var S_POST                       = '.userContentWrapper';
@@ -32,9 +33,9 @@
     var S_FORM_DELETEPOST            = 'div[role=\'dialog\'] form[action*=\'delete.php\']';
     var S_REPORT_INPUT               = 'textarea[name=\'xhpc_message\']';
     var S_REPORT_POST                = 'a[data-endpoint=\'/ajax/composerx/attachment/group/post/\']';
-    var S_REPORT_INPUT_REMOVEPREVIEW = 'button[title=Remove]';
-    var S_REPORT_INPUT_SUBMIT        = 'form[action*="/updatestatus.php"] button[type=submit]';
-    var S_REPORT_INPUT_PREVIEW       = 'form[action*="/updatestatus.php"] input[name="attachment[params][0]"]';
+    var S_REPORT_INPUT_REMOVEPREVIEW = '._4_4e button[title=Remove]';
+    var S_REPORT_INPUT_SUBMIT        = 'form[action*="/updatestatus.php"]:last-of-type button[type=submit]';
+    var S_REPORT_POSTED_LINK         = '.composerPostSection .userContentWrapper .userContent a';
     
     var violationTypes = [
         'Pornographic content',
@@ -48,11 +49,15 @@
         var summary = '';
     
         summary += "Facebook: " + data.name + "\n";
-        summary += "Profile: https://www.facebook.com/profile.php?id=" + data.id + "\n";
+        summary += "Profile: " + buildUserProfileLink(data.id) + "\n";
         summary += "Reason: " + data.reason + "\n";
         summary += "Status: " + data.status;
     
         return summary;
+    };
+    
+    var buildUserProfileLink = function(userId) {
+        return "https://www.facebook.com/profile.php?id=" + userId;
     };
     
     var reportActionCondition = function (_, queryParams) {
@@ -60,6 +65,7 @@
     };
     
     ddj.hookr.addHook({
+        name       : 'ExtendBanForm',
         urlPattern : URL_ADMIN_GROUP,
         state      : STATE_INITIAL,
         selector   : S_FORM_DELETEPOST,
@@ -133,7 +139,8 @@
                     gm_report_reason : reportData.reason,
                     gm_report_status : reportData.status
                 });
-                var reportGroup = GM_openInTab('https://www.facebook.com/groups/288196098019436/?' + query);
+                
+                window.open('https://www.facebook.com/groups/288196098019436/?' + query, '', 'width=480,height=320,resizable=no,scrollbars=no,menubar=no,location=no,chrome=yes,dialog=yes,centerscreen=yes');
             }));
         
             updateReportSummary(null);
@@ -141,8 +148,34 @@
     });
     
     ddj.hookr.addHook({
+        name       : 'DecorateReportDocument',
         urlPattern : URL_REPORT_GROUP,
         state      : STATE_INITIAL,
+        selector   : 'body',
+        condition  : reportActionCondition,
+        handler    : function (match, queryParams) {
+            var overlay = $('<div>').css({
+                'position' : 'fixed',
+                'left' : '0px',
+                'top' : '0px',
+                'right' : '0px',
+                'bottom' : '0px',
+                'background-color' : '#e9eaed',
+                'background-image' : 'url(https://github.com/dennisdegryse/ddj-mjolnir/blob/master/src/loader.gif?raw=true)',
+                'background-postion' : 'center center',
+                'z-index' : 9007199254740992
+            });
+            
+            $(match).append(overlay);
+            
+            return STATE_REPORTING_WINDOW;
+        }
+    });
+    
+    ddj.hookr.addHook({
+        name       : 'ComposeReport',
+        urlPattern : URL_REPORT_GROUP,
+        state      : STATE_REPORTING_WINDOW,
         selector   : S_REPORT_POST,
         condition  : reportActionCondition,
         handler    : function (match, queryParams) {
@@ -162,30 +195,31 @@
     });
     
     ddj.hookr.addHook({
+        name       : 'SubmitReport',
         urlPattern : URL_REPORT_GROUP,
         state      : STATE_REPORTING_COMPOSED,
-        selector   : S_REPORT_INPUT_PREVIEW,
-        condition  : function (match, queryParams) {
-            return reportActionCondition(match, queryParams) && $(match).val() == queryParams.gm_report_id;
-        },
+        selector   : S_REPORT_INPUT_REMOVEPREVIEW,
+        condition  : reportActionCondition,
         handler    : function (match, queryParams) {
-            var form = $(match).parents('form');
-             
-            form.find(S_REPORT_INPUT_REMOVEPREVIEW).trigger('click');
-
-            setTimeout(function () {
-                var submitButton = null;
-                
-                $(S_REPORT_INPUT_SUBMIT).each(function () {
-                    submitButton = $(this);
-                });
-                
-                submitButton.trigger('click');
-            }, 2000);
+            $(match).parent().parent().remove();
+            $(S_REPORT_INPUT_SUBMIT).trigger('click');
 
             return STATE_REPORTING_SUBMITTED;
         }
     });
     
+    ddj.hookr.addHook({
+        name       : 'CloseReportWindow',
+        urlPattern : URL_REPORT_GROUP,
+        state      : STATE_REPORTING_SUBMITTED,
+        selector   : S_REPORT_POSTED_LINK,
+        condition  : function (match, queryParams) { 
+            return reportActionCondition(match, queryParams) && $(match).attr('href') == buildUserProfileLink(queryParams.gm_report_id);
+        },
+        handler    : function (match, queryParams) {
+            window.setTimeout(window.close, 2000);
+        }
+    });
+
     ddj.hookr.setState(STATE_INITIAL);
 })();
